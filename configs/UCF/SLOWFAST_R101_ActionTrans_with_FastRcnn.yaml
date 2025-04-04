@@ -1,0 +1,132 @@
+evaluate: True
+
+# pretrain:
+#     path: experiments/AVA_v2.2/SLOWFAST_R101_baseline_v2_34.5/SLOWFAST_R101_ActionTrans_with_FastRcnn_3_gelu_resume2/ckpt_5.pth.tar
+
+resume_path: experiments/UCF/SF101_ActionTrans_with_FastRcnn_neurips_2_re2/step_ckpt_20000.pth.tar
+
+result_path: experiments/UCF/SF101_ActionTrans_with_FastRcnn_neurips_2_re2_20000eval
+
+manual_seed: 1
+print_freq: 20
+
+accum_iter: 2
+
+preprocessor:
+    type: ava
+    kwargs:     
+        num_classes: 24
+        multi_class: True
+        autocast: False
+
+model:
+    freeze_bn: True
+    detection_topk: 10
+    backbone:
+        arch: slowfast101_dc5
+        learnable: True
+        pretrain:
+            path: pretrained/SLOWFAST_R101_K700.pth.tar
+        kwargs:
+            alpha: 4
+            beta: 0.125
+    head:
+        type: slowfast_3d
+        kwargs:
+            config:
+                in_channels: 2304
+                num_classes: 24
+                temporal_resolution: 4
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    activation: gelu
+                    pre_norm: True
+                matcher:
+                    set_cost_class: 2
+                    set_cost_bbox: 5
+                    set_cost_giou: 2
+                focal_alpha: 0.25
+
+detector:
+    config_file: configs/detector/keypoint_rcnn_X_101_32x8d_FPN_3x.yaml
+    pretrain:
+        path: pretrained/fast_rcnn_X_101_32x8d_FPN_3x_UCF_lr_0.005_iter_3000.pth.tar  
+
+
+train:
+    root_path: /mnt/sda1/caffe/data/UCF101/Frames
+    annotation_path: /mnt/sda1/caffe/cache/UCF101v2-GT.pkl
+    batch_size: 4
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 1.
+          - type: Normalize
+            kwargs:
+                mean: [110.63666788, 103.16065604, 96.29023126]
+                std: [38.7568578, 37.88248729, 40.02898126]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+        
+    n_epochs: 3
+    val_freq: 1
+    save_freq: 1
+    iter_save_freq: 2000
+    iter_val_freq: 12000
+
+
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 2
+
+    max_norm: 0.1
+
+val:
+    root_path: /mnt/sda1/caffe/data/UCF101/Frames
+    annotation_path: /mnt/sda1/caffe/cache/UCF101v2-GT.pkl
+    batch_size: 4
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: ToTensor
+            kwargs:
+                norm_value: 1.
+          - type: Normalize
+            kwargs:
+                mean: [110.63666788, 103.16065604, 96.29023126]
+                std: [38.7568578, 37.88248729, 40.02898126]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/UCF/ucf_action_list.pbtxt
+        groundtruth: annotations/UCF/ucf_test.csv
+

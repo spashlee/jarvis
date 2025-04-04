@@ -1,0 +1,128 @@
+evaluate: False
+
+# pretrain:
+#     path: experiments/AVA_v2.2/SLOWFAST_R50_ActionTrans_with_FastRcnn_1/ckpt_1.pth.tar
+
+# resume_path: experiments/AVA_v2.2/SLOWFAST_R50_ActionTrans_with_FastRcnn_3_no_roi_pos_embed/ckpt_4.pth.tar
+
+result_path: experiments/AVA_v2.1/SLOWFAST_R50_ActionTrans_with_FastRcnn_1_basic_6_posembed
+
+manual_seed: 1
+print_freq: 20
+
+preprocessor:
+    type: ava
+    kwargs:     
+        num_classes: 60
+        multi_class: True
+
+model:
+    freeze_bn: True
+    detection_topk: 15
+    backbone:
+        arch: slowfast50_dc5
+        learnable: True
+        pretrain:
+            path: pretrained/SLOWFAST_R50_K400.pth.tar        
+        kwargs:
+            alpha: 4
+            beta: 0.125
+            fuse_only_conv: False
+            fuse_kernel_size: 7
+            slow_full_span: True
+    head:
+        type: detr_3d
+        kwargs:
+            config:
+                in_channels: 2304
+                num_classes: 60
+                temporal_resolution: 4
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    pre_norm: True
+                matcher:
+                    set_cost_class: 2
+                    set_cost_bbox: 5
+                    set_cost_giou: 2
+                focal_alpha: 0.25
+
+detector:
+    config_file: configs/detector/keypoint_rcnn_X_101_32x8d_FPN_3x.yaml
+    pretrain:
+        path: pretrained/fast_rcnn_X_101_32x8d_FPN_3x_AVA_v2.2_ckpt_10.pth.tar   
+
+
+train:
+    root_path: data
+    annotation_path: annotations/AVA_v2.1/ava_train_v2.1_all.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+        
+    n_epochs: 6
+    val_freq: 1
+    save_freq: 1
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 4
+
+    max_norm: 0.1
+
+val:
+    root_path: data
+    annotation_path: annotations/AVA_v2.1/ava_val_v2.1_all.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+                
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/AVA_v2.1/ava_action_list_v2.1_for_activitynet_2018.pbtxt
+        groundtruth: annotations/AVA_v2.1/ava_val_v2.1.csv
+        exclusions: annotations/AVA_v2.1/ava_val_excluded_timestamps_v2.1.csv
+

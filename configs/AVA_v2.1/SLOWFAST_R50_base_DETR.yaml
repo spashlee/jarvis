@@ -1,0 +1,122 @@
+evaluate: False
+
+# resume_path: experiments/AVA_v2.1_mini/SLOWFAST_R50_action_DETR_1/ckpt_9.pth.tar
+
+result_path: experiments/AVA_v2.1_mini/SLOWFAST_R50_base_DETR_2_detr_like_pose
+
+manual_seed: 1
+print_freq: 20
+
+model:
+    freeze_bn: False
+    preprocessor:
+        type: ava
+        kwargs:
+            num_classes: 60
+            multi_class: True    
+    backbone:
+        arch: slowfast50
+        learnable: True
+        pretrain:
+            path: pretrained/SLOWFAST_R50_K400.pth.tar
+        kwargs:
+            alpha: 4
+            beta: 0.125
+            fuse_only_conv: False
+            fuse_kernel_size: 7
+            slow_full_span: True
+    head:
+        type: action_detr3d
+        kwargs:
+            config:
+                in_channels: 2304
+                num_classes: 60
+                temporal_resolution: 4
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    dec_layers: 6
+                    pre_norm: True
+                matcher:
+                    set_cost_class: 2
+                    set_cost_bbox: 5
+                    set_cost_giou: 2
+                num_queries: 15
+                aux_loss: False
+                cls_loss_coef: 2
+                bbox_loss_coef: 5
+                giou_loss_coef: 2
+                focal_alpha: 0.25
+
+train:
+    root_path: data
+    annotation_path: annotations/AVA_v2.1/ava_train_v2.1_all_mini.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+        
+    n_epochs: 20
+    val_freq: 3
+    save_freq: 1
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 11
+
+    max_norm: 0.1
+
+val:
+    root_path: data
+    annotation_path: annotations/AVA_v2.1/ava_val_v2.1_all.pkl
+    batch_size: 2
+    
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/AVA_v2.1/ava_action_list_v2.1_for_activitynet_2018.pbtxt
+        groundtruth: annotations/AVA_v2.1/ava_val_v2.1.csv
+        exclusions: annotations/AVA_v2.1/ava_val_excluded_timestamps_v2.1.csv

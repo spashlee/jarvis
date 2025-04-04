@@ -1,0 +1,169 @@
+evaluate: False
+
+resume_path: experiments/AVA_v2.2/SLOWFAST_R101_JARViS_1_detr_detector_eval1/ckpt_7.pth.tar
+
+result_path: experiments/AVA_v2.2/SLOWFAST_R101_JARViS_1_detr_detector_drop8
+
+manual_seed: 1
+print_freq: 20
+
+accum_iter: 4
+
+preprocessor:
+    type: ava
+    kwargs: 
+        num_classes: 60
+        multi_class: True
+
+model:
+    freeze_bn: True
+    topk: 15
+    backbone:
+        arch: slowfast101_dc5
+        learnable: True
+        pretrain:
+            path: pretrained/SLOWFAST_R101_K700.pth.tar        
+        kwargs:
+            alpha: 4
+            beta: 0.125
+    head:
+        type: slowfast_3d
+        kwargs:
+            config:
+                in_channels: 2304
+                num_classes: 60
+                temporal_resolution: 4
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    activation: gelu
+                    pre_norm: True
+        matcher:
+            set_cost_class: 2
+            set_cost_bbox: 5
+            set_cost_giou: 2
+        focal_alpha: 0.25
+
+detector:
+    pretrained: pretrained/detr-r50-e632da11_ava_finetuned_final.pth
+    lr: 0.
+    lr_backbone: 0.
+
+    frozen_weights: True
+    backbone: resnet50
+    dilation: False
+
+    position_embedding: sine
+    enc_layers: 6
+    dec_layers: 6
+    dim_feedforward: 2048
+    hidden_dim: 256
+    dropout: 0.1
+    nheads: 8
+    num_queries: 100
+    pre_norm: False
+    masks: False
+    aux_loss: False
+    set_cost_class: 1
+    set_cost_bbox: 5
+    set_cost_giou: 2
+
+    mask_loss_coef: 1
+    dice_loss_coef: 1
+    bbox_loss_coef: 5 
+    giou_loss_coef: 2
+    eos_coef: 0.1
+    dataset_file: coco
+    device: cuda
+
+train:
+    root_path: data/AVA
+    annotation_path: annotations/AVA_v2.2/ava_train_v2.2.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 1.
+          - type: Normalize
+            kwargs:
+                mean: [110.63666788, 103.16065604, 96.29023126]
+                std: [38.7568578, 37.88248729, 40.02898126]
+        temporal:
+            type: TemporalRandomCrop
+            kwargs:
+                size: 64
+                step: 2
+
+        det_spatial:
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406]
+                std: [0.229, 0.224, 0.225]
+
+    n_epochs: 10
+    val_freq: 1
+    save_freq: 1
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 1
+
+    max_norm: 0.1
+
+val:
+    root_path: data/AVA
+    annotation_path: annotations/AVA_v2.2/ava_val_v2.2_gt.pkl
+    batch_size: 4
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 256
+          - type: ToTensor
+            kwargs:
+                norm_value: 1.
+          - type: Normalize
+            kwargs:
+                mean: [110.63666788, 103.16065604, 96.29023126]
+                std: [38.7568578, 37.88248729, 40.02898126]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+
+        det_spatial:
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406]
+                std: [0.229, 0.224, 0.225]
+
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/AVA_v2.2/ava_action_list_v2.2_for_activitynet_2019.pbtxt
+        groundtruth: annotations/AVA_v2.2/ava_val_v2.2.csv
+        exclusions: annotations/AVA_v2.2/ava_val_excluded_timestamps_v2.2.csv
+

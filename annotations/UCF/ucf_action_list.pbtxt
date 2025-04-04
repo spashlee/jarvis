@@ -1,0 +1,96 @@
+item {
+  name: "Basketball"
+  id: 1
+}
+item {
+  name: "BasketballDunk"
+  id: 2
+}
+item {
+  name: "Biking"
+  id: 3
+}
+item {
+  name: "CliffDiving"
+  id: 4
+}
+item {
+  name: "CricketBowling"
+  id: 5
+}
+item {
+  name: "Diving"
+  id: 6
+}
+item {
+  name: "Fencing"
+  id: 7
+}
+item {
+  name: "FloorGymnastics"
+  id: 8
+}
+item {
+  name: "GolfSwing"
+  id: 9
+}
+item {
+  name: "HorseRiding"
+  id: 10
+}
+item {
+  name: "IceDancing"
+  id: 11
+}
+item {
+  name: "LongJump"
+  id: 12
+}
+item {
+  name: "PoleVault"
+  id: 13
+}
+item {
+  name: "RopeClimbing"
+  id: 14
+}
+item {
+  name:  "SalsaSpin"
+  id: 15
+}
+item {
+  name: "SkateBoarding"
+  id: 16
+}
+item {
+  name: "Skiing"
+  id: 17
+}
+item {
+  name: "Skijet"
+  id: 18
+}
+item {
+  name: "SoccerJuggling"
+  id: 19
+}
+item {
+  name: "Surfing"
+  id: 20
+}
+item {
+  name: "TennisSwing"
+  id: 21
+}
+item {
+  name: "TrampolineJumping"
+  id: 22
+}
+item {
+  name: "VolleyballSpiking"
+  id: 23
+}
+item {
+  name: "WalkingWithDog"
+  id: 24
+}

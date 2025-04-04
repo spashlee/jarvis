@@ -1,0 +1,146 @@
+evaluate: False
+
+# pretrain:
+#     path: experiments/AVA_v2.2/SF50_enc6/ckpt_1.pth.tar
+
+# resume_path: experiments/UCF/SF50_tube/ckpt_2.pth.tar
+
+result_path: experiments/UCF/SF50_with_YOWO_2_max_conf_v2
+
+manual_seed: 1
+print_freq: 20
+
+accum_iter: 1
+
+preprocessor:
+    type: ava
+    kwargs:     
+        num_classes: 24
+        multi_class: True
+        autocast: False
+        
+model:
+    freeze_bn: True
+    detection_topk: 10
+    backbone:
+        arch: slowfast50_dc5
+        learnable: True
+        pretrain:
+            path: pretrained/SLOWFAST_R50_K400.pth.tar        
+        kwargs:
+            alpha: 4
+            beta: 0.125
+            fuse_only_conv: False
+            fuse_kernel_size: 7
+            slow_full_span: True
+    head:
+        type: slowfast_3d
+        kwargs:
+            config:
+                in_channels: 2304
+                num_classes: 24
+                temporal_resolution: 4
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    activation: gelu
+                    pre_norm: True
+                matcher:
+                    set_cost_class: 2
+                    set_cost_bbox: 5
+                    set_cost_giou: 2
+                focal_alpha: 0.25
+
+detector:
+    pretrain:
+        path: pretrained/yowo_ucf101-24_16f_best.pth
+    detection_topk: 10
+    MODEL:
+        NUM_CLASSES: 24
+        BACKBONE_3D: resnext101
+        BACKBONE_2D: darknet
+    WEIGHTS:
+        # BACKBONE_3D: "weights/resnext-101-kinetics.pth"
+        # BACKBONE_2D: "weights/yolo.weights"
+        BACKBONE_3D: False
+        BACKBONE_2D: False      
+        FREEZE_BACKBONE_3D: False
+        FREEZE_BACKBONE_2D: False
+    SOLVER:
+        ANCHORS: [0.70458, 1.18803, 1.26654, 2.55121, 1.59382, 4.08321, 2.30548, 4.94180, 3.52332, 5.91979]
+        NUM_ANCHORS: 5        
+
+
+train:
+    root_path: /mnt/sda1/caffe/data/UCF101/Frames
+    annotation_path: /mnt/sda1/caffe/cache/UCF101v2-GT.pkl
+    batch_size: 8
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+        
+    n_epochs: 3
+    val_freq: 1
+    save_freq: 1
+    iter_save_freq: 2000
+    iter_val_freq: 2000
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 2
+
+    max_norm: 0.1
+
+val:
+    root_path: /mnt/sda1/caffe/data/UCF101/Frames
+    annotation_path: /mnt/sda1/caffe/cache/UCF101v2-GT.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.450, 0.450, 0.450]
+                std: [0.225, 0.225, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 2
+
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/UCF/ucf_action_list.pbtxt
+        groundtruth: annotations/UCF/ucf_test.csv

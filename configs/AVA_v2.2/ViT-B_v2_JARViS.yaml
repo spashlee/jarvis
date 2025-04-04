@@ -1,0 +1,171 @@
+evaluate: False
+
+# resume_path: experiments/AVA_v2.2/ViT-B_v2_JARViS_detr_detector_3_full_res/ckpt_1.pth.tar
+
+result_path: experiments/AVA_v2.2/ViT-B_v2_JARViS_detr_detector_test
+
+manual_seed: 1
+print_freq: 20
+
+accum_iter: 4
+
+preprocessor:
+    type: ava
+    kwargs:     
+        num_classes: 60
+        multi_class: True
+
+model:
+    freeze_bn: True
+    topk: 15
+    backbone:
+        arch: vit_base_patch16_224
+        learnable: True
+        pretrain:
+            path: pretrained/vit_b_k710_dl_from_giant.pth
+        kwargs:
+            num_classes: 400
+            all_frames: 16
+            tubelet_size: 2
+            drop_path_rate: 0.1
+    head:
+        type: vit
+        kwargs:
+            config:
+                in_channels: 768
+                num_classes: 60
+                temporal_resolution: 2
+                position_encoding:
+                    hidden_dim: 256
+                    position_embedding_flag: sine_separate
+                transformer:
+                    hidden_dim: 256
+                    dropout: 0.1
+                    nheads: 8
+                    dim_feedforward: 1024
+                    enc_layers: 6
+                    activation: gelu
+                    pre_norm: True
+        matcher:
+            set_cost_class: 2
+            set_cost_bbox: 5
+            set_cost_giou: 2
+        focal_alpha: 0.25
+
+detector:
+    pretrained: pretrained/detr-r50-e632da11_ava_finetuned_final.pth
+    lr: 0.
+    lr_backbone: 0.
+
+    frozen_weights: True
+    backbone: resnet50
+    dilation: False
+
+    position_embedding: sine
+    enc_layers: 6
+    dec_layers: 6
+    dim_feedforward: 2048
+    hidden_dim: 256
+    dropout: 0.1
+    nheads: 8
+    num_queries: 100
+    pre_norm: False
+    masks: False
+    aux_loss: False
+    set_cost_class: 1
+    set_cost_bbox: 5
+    set_cost_giou: 2
+
+    mask_loss_coef: 1
+    dice_loss_coef: 1
+    bbox_loss_coef: 5 
+    giou_loss_coef: 2
+    eos_coef: 0.1
+    dataset_file: coco
+    device: cuda
+
+train:
+    root_path: data/AVA
+    annotation_path: annotations/AVA_v2.2/ava_train_v2.2.pkl
+    batch_size: 1
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: RandomHorizontalFlip
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406] 
+                std: [0.229, 0.224, 0.225]
+        temporal:
+            type: TemporalRandomCrop
+            kwargs:
+                size: 64
+                step: 4
+
+        det_spatial:
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406]
+                std: [0.229, 0.224, 0.225]
+
+    n_epochs: 10
+    val_freq: 1
+    save_freq: 1
+
+    optimizer:
+        lr: 0.0001
+        lr_backbone: 0.00001
+        weight_decay: 0.0001
+
+    scheduler:
+        lr_drop: 8
+
+    max_norm: 0.1
+
+val:
+    root_path: data/AVA
+    annotation_path: annotations/AVA_v2.2/ava_val_v2.2_gt.pkl
+    batch_size: 2
+
+    augmentation:
+        spatial:
+          - type: Scale
+            kwargs:
+                resize: 224
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406] 
+                std: [0.229, 0.224, 0.225]
+        temporal:
+            type: TemporalCenterCrop
+            kwargs:
+                size: 64
+                step: 4
+
+        det_spatial:
+          - type: ToTensor
+            kwargs:
+                norm_value: 255.
+          - type: Normalize
+            kwargs:
+                mean: [0.485, 0.456, 0.406]
+                std: [0.229, 0.224, 0.225]                
+
+    with_label: False
+    eval_mAP:
+        labelmap: annotations/AVA_v2.2/ava_action_list_v2.2_for_activitynet_2019.pbtxt
+        groundtruth: annotations/AVA_v2.2/ava_val_v2.2.csv
+        exclusions: annotations/AVA_v2.2/ava_val_excluded_timestamps_v2.2.csv
+
